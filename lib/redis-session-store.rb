@@ -49,6 +49,7 @@ class RedisSessionStore < ActionDispatch::Session::AbstractStore
     @serializer = determine_serializer(options[:serializer])
     @on_session_load_error = options[:on_session_load_error]
     verify_handlers!
+    @redis_timeout_tries = options[:redis_timeout_retries].to_i + 1
   end
 
   attr_accessor :on_redis_down, :on_session_load_error
@@ -125,6 +126,9 @@ class RedisSessionStore < ActionDispatch::Session::AbstractStore
   rescue Errno::ECONNREFUSED, Redis::CannotConnectError => e
     on_redis_down.call(e, env, sid) if on_redis_down
     return false
+  rescue Redis::TimeoutError => e
+    retry unless (@redis_timeout_tries -= 1).zero?
+    raise e
   end
   alias write_session set_session
 
