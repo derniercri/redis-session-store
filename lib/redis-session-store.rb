@@ -73,6 +73,9 @@ class RedisSessionStore < ActionDispatch::Session::AbstractStore
     on_redis_down.call(e, env, value) if on_redis_down
 
     true
+  rescue Redis::TimeoutError => e
+    retry unless (@redis_timeout_tries -= 1).zero?
+    raise e
   end
 
   def verify_handlers!
